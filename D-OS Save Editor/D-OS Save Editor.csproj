@@ -2,6 +2,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net462</TargetFramework>
+    <!-- LSLib / LSLibNative are x86; must match 32-bit process -->
+    <PlatformTarget>x86</PlatformTarget>
     <UseWpf>true</UseWpf>
     <RootNamespace>D_OS_Save_Editor</RootNamespace>
     <AssemblyName>D-OS Save Editor</AssemblyName>
