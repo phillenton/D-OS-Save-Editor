@@ -12,6 +12,67 @@ namespace D_OS_Save_Editor
     [SuppressMessage("ReSharper", "AssignNullToNotNullAttribute")]
     public class LsxParser
     {
+        /// <summary>
+        /// LSX stores &lt;attribute id="..." type="..." value="..." /&gt;; value is not always Attributes[1]. Read the value attribute by name.
+        /// </summary>
+        private static string GetLsxAttributeValue(XmlNode attributeElement)
+        {
+            if (attributeElement?.Attributes == null) return null;
+            var byName = attributeElement.Attributes["value"];
+            if (byName != null) return byName.Value;
+            foreach (XmlAttribute a in attributeElement.Attributes)
+            {
+                if (string.Equals(a.LocalName, "value", StringComparison.OrdinalIgnoreCase))
+                    return a.Value;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Type 28 (TranslatedString) often stores only <c>handle</c> in the save; resolved <c>value</c> may be absent until load.
+        /// </summary>
+        private static string GetLsxAttributeValueOrHandle(XmlNode attributeElement)
+        {
+            var v = GetLsxAttributeValue(attributeElement);
+            if (!string.IsNullOrEmpty(v)) return v;
+            if (attributeElement?.Attributes == null) return null;
+            var h = attributeElement.Attributes["handle"];
+            if (h != null) return h.Value;
+            foreach (XmlAttribute a in attributeElement.Attributes)
+            {
+                if (string.Equals(a.LocalName, "handle", StringComparison.OrdinalIgnoreCase))
+                    return a.Value;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Sets the LSX <c>value=</c> attribute (not a fixed index — attribute order varies).
+        /// </summary>
+        private static void SetLsxAttributeValue(XmlNode parentNode, string attributeId, string value)
+        {
+            var attrEl = parentNode.SelectSingleNode($"attribute [@id='{attributeId}']");
+            if (attrEl?.Attributes == null)
+                throw new InvalidOperationException($"Missing attribute id='{attributeId}' on node.");
+            var v = attrEl.Attributes["value"];
+            if (v != null)
+            {
+                v.Value = value;
+                return;
+            }
+
+            foreach (XmlAttribute a in attrEl.Attributes)
+            {
+                if (string.Equals(a.LocalName, "value", StringComparison.OrdinalIgnoreCase))
+                {
+                    a.Value = value;
+                    return;
+                }
+            }
+
+            throw new InvalidOperationException($"Attribute id='{attributeId}' has no value=.");
+        }
+
         #region read file
         public static List<string> GenerationBoostCollector;
         public static List<string> StatsBoostsCollector;
@@ -39,46 +100,53 @@ namespace D_OS_Save_Editor
                     throw new PlayerParserException(e, playerData[i]);
                 }
 
-                // now we have the inventory id, we can get items
-                var inventoryData =
-                    doc.DocumentElement.SelectNodes($"//attribute [@id='Parent'] [@value='{players[i].InventoryId}']");
-                if (inventoryData == null)
-                    return;
+                // BFS: top-level inventory, then each nested container (child items' Parent = container's NestedInventoryId)
+                var itemList = new List<Item>();
+                var nodeList = new List<XmlNode>();
+                var expandQueue = new Queue<string>();
+                var expandedInventories = new HashSet<string>();
+                expandQueue.Enqueue(players[i].InventoryId);
 
-                players[i].Items = new Item[inventoryData.Count];
-                //var notAnItemIdx = new List<int>();
-                var notAnItemIdx = new ConcurrentQueue<int>();
-                Parallel.For(0, inventoryData.Count, j =>
+                while (expandQueue.Count > 0)
                 {
-                    Item item;
-                    try
-                    {
-                        item = ParseItem(inventoryData[j].ParentNode);
-                        item.ItemXmlNodeIdx = j;
-                    }
-                    catch (ObjectNullException)
-                    {
-                        notAnItemIdx.Enqueue(j);
-                        return;
-                    }
-                    catch (Exception e)
-                    {
-                        throw new ItemParserException(e, inventoryData[j].ParentNode);
-                    }
+                    var invId = expandQueue.Dequeue();
+                    if (!expandedInventories.Add(invId))
+                        continue;
 
-                    players[i].Items[j] = item;
-                    players[i].SlotsOccupation[int.Parse(item.Slot)] = true;
-                });
+                    var inventoryData =
+                        doc.DocumentElement.SelectNodes($"//attribute [@id='Parent'] [@value='{invId}']");
+                    if (inventoryData == null) continue;
 
-                if (notAnItemIdx.Count == 0) return;
+                    for (var j = 0; j < inventoryData.Count; j++)
+                    {
+                        var itemNode = inventoryData[j].ParentNode;
+                        Item item;
+                        try
+                        {
+                            item = ParseItem(itemNode);
+                            item.ItemXmlNodeIdx = itemList.Count;
+                        }
+                        catch (ObjectNullException)
+                        {
+                            continue;
+                        }
+                        catch (Exception e)
+                        {
+                            throw new ItemParserException(e, itemNode);
+                        }
 
-                // remove not an item entry
-                var items = new List<Item>(players[i].Items);
-                var list = notAnItemIdx.ToList();
-                list.Sort((a, b) => b.CompareTo(a));
-                foreach (var idx in list)
-                    items.RemoveAt(idx);
-                players[i].Items = items.ToArray();
+                        itemList.Add(item);
+                        nodeList.Add(itemNode);
+                        players[i].SlotsOccupation[int.Parse(item.Slot)] = true;
+
+                        var nested = item.NestedInventoryId;
+                        if (!string.IsNullOrEmpty(nested) && nested != "0")
+                            expandQueue.Enqueue(nested);
+                    }
+                }
+
+                players[i].Items = itemList.ToArray();
+                players[i].ItemXmlNodes = nodeList;
             });
             return players;
         }
@@ -165,13 +233,35 @@ namespace D_OS_Save_Editor
                 item.StatsName = node.SelectSingleNode("attribute [@id='Stats']").Attributes[1].Value;
                 item.Parent = node.SelectSingleNode("attribute [@id='Parent']").Attributes[1].Value;
                 item.Slot = node.SelectSingleNode("attribute [@id='Slot']").Attributes[1].Value;
-                item.Amount = node.SelectSingleNode("attribute [@id='Amount']").Attributes[1].Value;
+                var amountAttr = node.SelectSingleNode("attribute [@id='Amount']");
+                item.Amount = GetLsxAttributeValue(amountAttr) ?? amountAttr.Attributes[1].Value;
                 item.IsGenerated = node.SelectSingleNode("attribute [@id='IsGenerated']").Attributes[1].Value;
                 item.LockLevel = node.SelectSingleNode("attribute [@id='LockLevel']").Attributes[1].Value;
                 item.Vitality = node.SelectSingleNode("attribute [@id='Vitality']").Attributes[1].Value;
                 item.ItemType = node.SelectSingleNode("attribute [@id='ItemType']").Attributes[1].Value;
                 item.MaxVitalityPatchCheck = node.SelectSingleNode("attribute [@id='MaxVitalityPatchCheck']").Attributes[1].Value;
-                item.MaxDurabilityPatchCheck = node.SelectSingleNode("attribute [@id='MaxDurabilityPatchCheck']")?.Attributes[1].Value;
+                var maxDurAttr = node.SelectSingleNode("attribute [@id='MaxDurabilityPatchCheck']");
+                item.MaxDurabilityPatchCheck = maxDurAttr == null
+                    ? null
+                    : GetLsxAttributeValue(maxDurAttr) ?? maxDurAttr.Attributes[1].Value;
+
+                var invAttr = node.SelectSingleNode("attribute [@id='Inventory']");
+                item.NestedInventoryId = invAttr?.Attributes[1].Value ?? "0";
+
+                // Friendly label: DisplayName / Name — prefer resolved value, else Larian handle (h…;n) when only that is stored.
+                var displayNameAttr = node.SelectSingleNode("attribute [@id='DisplayName']") ??
+                                      node.SelectSingleNode(".//attribute [@id='DisplayName']");
+                var rawDisplay = GetLsxAttributeValueOrHandle(displayNameAttr);
+                item.DisplayName = string.IsNullOrWhiteSpace(rawDisplay) ? null : rawDisplay.Trim();
+
+                if (string.IsNullOrEmpty(item.DisplayName))
+                {
+                    var nameAttr = node.SelectSingleNode("attribute [@id='Name']") ??
+                                     node.SelectSingleNode("children//attribute [@id='Name']") ??
+                                     node.SelectSingleNode(".//attribute [@id='Name']");
+                    var rawName = GetLsxAttributeValueOrHandle(nameAttr);
+                    item.DisplayName = string.IsNullOrWhiteSpace(rawName) ? null : rawName.Trim();
+                }
             }
             catch (NullReferenceException e)
             {
@@ -183,6 +273,8 @@ namespace D_OS_Save_Editor
                 item.ItemSort = ItemSortType.Key;
             else if (DataTable.GoldNames.Contains(item.StatsName.ToLower()))
                 item.ItemSort = ItemSortType.Gold;
+            else if (DataTable.IsContainerStatsName(item.StatsName.ToLower()))
+                item.ItemSort = ItemSortType.Container;
             else
             {
                 var nameParts = item.StatsName.ToLower().Split('_');
@@ -342,7 +434,8 @@ namespace D_OS_Save_Editor
             if (playerData == null)
                 throw new XmlException("Unable to find any player data in the savegame.");
 
-            Parallel.For(0, playerData.Count, i =>
+            // Sequential: XmlDocument is not safe for concurrent writes; item edits must target this loaded doc.
+            for (var i = 0; i < playerData.Count; i++)
             {
                 playerData[i].ParentNode.ParentNode.SelectSingleNode("attribute [@id='MaxVitalityPatchCheck']")
                     .Attributes[1].Value = players[i].MaxVitalityPatchCheck;
@@ -395,16 +488,73 @@ namespace D_OS_Save_Editor
 
                 // write item changes
                 doc = WriteItemChanges(doc, players[i]);
-            });
+            }
 
             return doc;
         }
 
+        /// <summary>
+        /// Replays the same BFS inventory walk as <see cref="ParsePlayer"/> so we get live <see cref="XmlNode"/>
+        /// references into <paramref name="doc"/>. Required for save: <see cref="Savegame.WriteEditsToLsxAsync"/>
+        /// loads a new <see cref="XmlDocument"/>; cached <see cref="Player.ItemXmlNodes"/> point at the old tree.
+        /// </summary>
+        private static List<XmlNode> CollectItemXmlNodesForPlayer(XmlDocument doc, Player player)
+        {
+            var nodeList = new List<XmlNode>();
+            var expandQueue = new Queue<string>();
+            var expandedInventories = new HashSet<string>();
+            expandQueue.Enqueue(player.InventoryId);
+
+            while (expandQueue.Count > 0)
+            {
+                var invId = expandQueue.Dequeue();
+                if (!expandedInventories.Add(invId))
+                    continue;
+
+                var inventoryData =
+                    doc.DocumentElement.SelectNodes($"//attribute [@id='Parent'] [@value='{invId}']");
+                if (inventoryData == null) continue;
+
+                for (var j = 0; j < inventoryData.Count; j++)
+                {
+                    var itemNode = inventoryData[j].ParentNode;
+                    Item item;
+                    try
+                    {
+                        item = ParseItem(itemNode);
+                    }
+                    catch (ObjectNullException)
+                    {
+                        continue;
+                    }
+                    catch (Exception e)
+                    {
+                        throw new ItemParserException(e, itemNode);
+                    }
+
+                    nodeList.Add(itemNode);
+
+                    var nested = item.NestedInventoryId;
+                    if (!string.IsNullOrEmpty(nested) && nested != "0")
+                        expandQueue.Enqueue(nested);
+                }
+            }
+
+            return nodeList;
+        }
+
         public static XmlDocument WriteItemChanges(XmlDocument doc, Player player)
         {
-            // get all items belong to this player
-            // find item data
-            var inventoryData = doc.DocumentElement.SelectNodes($"//attribute [@id='Parent'] [@value='{player.InventoryId}']");
+            if (player.ItemChanges == null || player.ItemChanges.Count == 0)
+                return doc;
+
+            if (player.Items == null)
+                throw new InvalidOperationException("Player.Items is null.");
+
+            var itemNodes = CollectItemXmlNodesForPlayer(doc, player);
+            if (itemNodes.Count != player.Items.Length)
+                throw new InvalidOperationException(
+                    $"Item XML node count ({itemNodes.Count}) must match Player.Items length ({player.Items.Length}) when writing inventory.");
 
             foreach (var ic in player.ItemChanges)
             {
@@ -420,35 +570,25 @@ namespace D_OS_Save_Editor
                     }
                     else if (ic.Value.ChangeType == ChangeType.Modify)
                     {
-                        var itemNode = inventoryData[ic.Value.Item.ItemXmlNodeIdx].ParentNode;
+                        var itemNode = itemNodes[ic.Value.Item.ItemXmlNodeIdx];
 
                         var allowedChanges = ic.Value.Item.GetAllowedChangeType();
                         if (allowedChanges.Contains(nameof(ic.Value.Item.Amount)))
-                            itemNode.SelectSingleNode("attribute [@id='Amount']").Attributes[1].Value =
-                                ic.Value.Item.Amount;
+                            SetLsxAttributeValue(itemNode, "Amount", ic.Value.Item.Amount);
 
                         if (allowedChanges.Contains(nameof(ic.Value.Item.LockLevel)))
-                            itemNode.SelectSingleNode("attribute [@id='LockLevel']").Attributes[1].Value =
-                                ic.Value.Item.LockLevel;
+                            SetLsxAttributeValue(itemNode, "LockLevel", ic.Value.Item.LockLevel);
 
                         if (allowedChanges.Contains(nameof(ic.Value.Item.Vitality)))
                         {
-                            itemNode.SelectSingleNode("attribute [@id='Vitality']").Attributes[1].Value =
-                                ic.Value.Item.Vitality;
-                            itemNode.SelectSingleNode("attribute [@id='MaxVitalityPatchCheck']").Attributes[1].Value =
-                                ic.Value.Item.MaxVitalityPatchCheck;
+                            SetLsxAttributeValue(itemNode, "Vitality", ic.Value.Item.Vitality);
+                            SetLsxAttributeValue(itemNode, "MaxVitalityPatchCheck", ic.Value.Item.MaxVitalityPatchCheck);
                         }
 
                         if (allowedChanges.Contains(nameof(ic.Value.Item.ItemRarity)))
-                            itemNode.SelectSingleNode("attribute [@id='ItemType']").Attributes[1].Value =
-                                ic.Value.Item.ItemRarity.ToString();
+                            SetLsxAttributeValue(itemNode, "ItemType", ic.Value.Item.ItemRarity.ToString());
 
-                        // max durability cannot be changed
-                        //var node = itemNode.SelectSingleNode("attribute [@id='MaxDurabilityPatchCheck']");
-                        //if (allowedChanges.Contains(nameof(ic.Value.Item.Stats)) && node!=null)
-                        //{
-                        //    node.Attributes[1].Value = ic.Value.Item.MaxDurabilityPatchCheck;
-                        //}
+                        // MaxDurabilityPatchCheck: display-only — game derives real max from item data at runtime.
 
                         // check if has generation
                         if (allowedChanges.Contains(nameof(ic.Value.Item.Generation)) &&
@@ -488,7 +628,7 @@ namespace D_OS_Save_Editor
                                 childrenNode.AppendChild(boost);
                             }
 
-                            itemNode.SelectSingleNode("attribute [@id='IsGenerated']").Attributes[1].Value = "True";
+                            SetLsxAttributeValue(itemNode, "IsGenerated", "True");
                         }
 
                         // check if has stats
@@ -497,17 +637,12 @@ namespace D_OS_Save_Editor
                             ic.Value.Item.Stats == null)
                             continue;
 
-                        statsNode.SelectSingleNode("attribute [@id='Durability']").Attributes[1].Value =
-                            ic.Value.Item.Stats.Durability;
-                        statsNode.SelectSingleNode("attribute [@id='DurabilityCounter']").Attributes[1].Value =
-                            ic.Value.Item.Stats.DurabilityCounter;
-                        statsNode.SelectSingleNode("attribute [@id='RepairDurabilityPenalty']").Attributes[1].Value =
-                            ic.Value.Item.Stats.RepairDurabilityPenalty;
-                        statsNode.SelectSingleNode("attribute [@id='Level']").Attributes[1].Value =
-                            ic.Value.Item.Stats.Level;
-                        statsNode.SelectSingleNode("attribute [@id='ItemType']").Attributes[1].Value =
-                            ic.Value.Item.ItemType; // ItemType is taken from item.ItemType
-                        statsNode.SelectSingleNode("attribute [@id='IsIdentified']").Attributes[1].Value = "1";
+                        SetLsxAttributeValue(statsNode, "Durability", ic.Value.Item.Stats.Durability);
+                        SetLsxAttributeValue(statsNode, "DurabilityCounter", ic.Value.Item.Stats.DurabilityCounter);
+                        SetLsxAttributeValue(statsNode, "RepairDurabilityPenalty", ic.Value.Item.Stats.RepairDurabilityPenalty);
+                        SetLsxAttributeValue(statsNode, "Level", ic.Value.Item.Stats.Level);
+                        SetLsxAttributeValue(statsNode, "ItemType", ic.Value.Item.ItemType);
+                        SetLsxAttributeValue(statsNode, "IsIdentified", "1");
                     }
 
                 }

@@ -46,7 +46,8 @@
             <TextBox Grid.Column="1" x:Name="SearchTextBox" Uid="SearchText" Margin="10,0,20,0" VerticalAlignment="Top" HorizontalAlignment="Stretch" Width="Auto" TextChanged="SearchTextBox_OnTextChanged"/>
             <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="Use space to separate" FontSize="10" FontStyle="Italic"/>
         </Grid>
-        <ListBox x:Name="ItemsListBox" Grid.Row="1" Grid.RowSpan="3" HorizontalAlignment="Left" MinHeight="430" Height="Auto" Margin="10,0,20,10" VerticalAlignment="Top" Width="239" SelectionChanged="ItemsListBox_OnSelectionChanged"/>
+        <TreeView x:Name="ItemsTreeView" Grid.Row="1" Grid.RowSpan="3" HorizontalAlignment="Left" MinHeight="430" Height="Auto" Margin="10,0,20,10" VerticalAlignment="Top" Width="280"
+                  SelectedItemChanged="ItemsTreeView_OnSelectedItemChanged"/>
         <StackPanel Orientation="Horizontal" Grid.Column="1" Margin="0,0,0,10">
             <Button Content="Check all" Margin="0,0,20,0" Padding="5,2" Width="80" Click="CheckAllButton_OnClick" VerticalAlignment="Top"/>
             <Button Content="Uncheck all" Padding="5,2" Width="80" Click="UncheckAllButtonBase_OnClick" VerticalAlignment="Top"/>
@@ -65,6 +66,7 @@
             <CheckBox x:Name="ShowScrollCheckBox" Content="Scroll" Tag="{x:Static local:ItemSortType.Scroll}"/>
             <CheckBox x:Name="ShowPotionCheckBox" Content="Potion" Tag="{x:Static local:ItemSortType.Potion}"/>
             <CheckBox x:Name="ShowFurnitureCheckBox" Content="Furniture" Tag="{x:Static local:ItemSortType.Furniture}"/>
+            <CheckBox x:Name="ShowContainerCheckBox" Content="Containers" Tag="{x:Static local:ItemSortType.Container}"/>
             <CheckBox x:Name="ShowSkillbookCheckBox" Content="Skill book" Tag="{x:Static local:ItemSortType.Skillbook}"/>
             <CheckBox x:Name="ShowGrenadeCheckBox" Content="Grenade" Tag="{x:Static local:ItemSortType.Granade}"/>
             <CheckBox x:Name="ShowFoodCheckBox" Content="Food" Tag="{x:Static local:ItemSortType.Food}"/>
@@ -80,41 +82,44 @@
             <GroupBox Header="Stats" x:Name="StatsGroupBox">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition/>
                         <RowDefinition/>
                         <RowDefinition/>
                         <RowDefinition/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto" MinWidth="88"/>
+                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Amount:"/>
-                    <TextBlock Text="Rarity:" Grid.Row="1"/>
-                    <TextBlock Text="Lock level:" Grid.Row="2"/>
-                    <TextBlock Text="Required level:" Grid.Row="3"/>
-                    <TextBlock Text="HP:" Grid.Row="0" Grid.Column="2" Margin="30,0,0,0"/>
-                    <TextBlock Text="Durability:" Grid.Row="1" Grid.Column="2" Margin="30,0,0,0"/>
-                    <TextBlock Text="Durability counter:" Grid.Row="2" Grid.Column="2" Margin="30,0,0,0"/>
-                    <TextBlock Text="Repair durability penalty:" Grid.Row="3" Grid.Column="2" Margin="30,0,0,0"/>
-                    <TextBox x:Name="AmountTextBox" Grid.Column="1" Margin="20,5,0,5" Width="90"/>
-                    <ComboBox x:Name="RarityComboBox" SelectionChanged="RarityComboBox_OnSelectionChanged" Grid.Column="1" Grid.Row="1" Width="90" Height="22" Margin="20,0,0,0"/>
-                    <TextBox x:Name="LockLevelTextBox" Grid.Row="2" Grid.Column="1"/>
-                    <TextBox x:Name="LevelTextBox" Grid.Row="3" Grid.Column="1"/>
-                    <StackPanel Grid.Row="0" Grid.Column="3" Orientation="Horizontal">
+                    <TextBlock x:Name="EquipmentSlotLabel" Text="Equip slot (0–14):" VerticalAlignment="Center" Visibility="Collapsed"/>
+                    <TextBlock x:Name="EquipmentSlotText" Grid.Column="1" Margin="12,2,0,2" VerticalAlignment="Center" Visibility="Collapsed" FontWeight="SemiBold"/>
+                    <TextBlock Text="Amount:" Grid.Row="1"/>
+                    <TextBlock Text="Rarity:" Grid.Row="2"/>
+                    <TextBlock Text="Lock level:" Grid.Row="3"/>
+                    <TextBlock Text="Required level:" Grid.Row="4"/>
+                    <TextBlock Text="HP:" Grid.Row="1" Grid.Column="2" Margin="30,0,0,0"/>
+                    <TextBlock Text="Durability:" Grid.Row="2" Grid.Column="2" Margin="30,0,0,0"/>
+                    <TextBlock Text="Durability counter:" Grid.Row="3" Grid.Column="2" Margin="30,0,0,0"/>
+                    <TextBlock Text="Repair durability penalty:" Grid.Row="4" Grid.Column="2" Margin="30,0,0,0"/>
+                    <TextBox x:Name="AmountTextBox" Grid.Row="1" Grid.Column="1" Margin="20,5,0,5" Width="90"/>
+                    <ComboBox x:Name="RarityComboBox" SelectionChanged="RarityComboBox_OnSelectionChanged" Grid.Column="1" Grid.Row="2" Width="90" Height="22" Margin="20,0,0,0"/>
+                    <TextBox x:Name="LockLevelTextBox" Grid.Row="3" Grid.Column="1"/>
+                    <TextBox x:Name="LevelTextBox" Grid.Row="4" Grid.Column="1"/>
+                    <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal">
                         <TextBox x:Name="VitalityTextBox" Margin="20,5,5,5" Width="35"/>
                         <TextBlock Text="/"/>
                         <TextBox x:Name="MaxVitalityPatchCheckTextBox" Margin="5,5,0,5" Width="35"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal">
+                    <StackPanel Grid.Row="2" Grid.Column="3" Orientation="Horizontal">
                         <TextBox x:Name="DurabilityTextBox" Margin="20,5,5,5" Width="35"/>
                         <TextBlock Text="/"/>
                         <TextBox x:Name="MaxDurabilityPatchCheckTextBox" Margin="5,5,0,5" Width="35"/>
                     </StackPanel>
-                    <TextBox x:Name="DurabilityCounterTextBox" Grid.Row="2" Grid.Column="3"/>
-                    <TextBox x:Name="RepairDurabilityPenaltyTextBox" Grid.Row="3" Grid.Column="3"/>
+                    <TextBox x:Name="DurabilityCounterTextBox" Grid.Row="3" Grid.Column="3"/>
+                    <TextBox x:Name="RepairDurabilityPenaltyTextBox" Grid.Row="4" Grid.Column="3"/>
                 </Grid>
             </GroupBox>
             <GroupBox Header="Modifiers" Width="{Binding Width, ElementName=StatsGroupBox, Mode=OneWay}">
