@@ -14,9 +14,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# scripts/ lives under repo root
-$repoRoot = Split-Path $PSScriptRoot -Parent
-
 $bodyFile = Join-Path $env:TEMP "gh-pr-dos-body.md"
 @'
 ## Summary
