@@ -20,7 +20,7 @@ All notable changes in **[phillenton/D-OS-Save-Editor](https://github.com/phille
 ### Build
 
 - **SortGenerationList** retargeted to **.NET Framework 4.6.2** so the solution builds with the same targeting pack as the main WPF app (`App.config` / `csproj` updated).
-- **Main app:** SDK-style `D-OS Save Editor.csproj` targeting **net462**, **`PlatformTarget` x86** (matches **LSLib** / `LSLibNative.dll`). `WPF-UI` **4.2.0** — **`ThemesDictionary` only** in `App.xaml` (global **`ControlsDictionary`** was removed: it caused `BadImageFormatException` when updating standard `TextBlock`s on this TF). Main shell is **`Window`** (not `FluentWindow`). Build: `dotnet build`. Output: `bin\Release\net462\`. Windows API Code Pack: `packages\winapicp.1.1` via `packages.config` (`winapicp`).
+- **Main app:** SDK-style `D-OS Save Editor.csproj` targeting **net462**, **`PlatformTarget` x86** (matches **LSLib** / `LSLibNative.dll`). `WPF-UI` **4.2.0** — **`ThemesDictionary` only** in `App.xaml` (do **not** merge **`ControlsDictionary`** globally: it caused `BadImageFormatException` when updating standard `TextBlock`s). **Visual:** `FluentWindow` + **`TitleBar`**, **`ApplicationBackgroundBrush`**, **`WindowBackdropType="Mica"`** (Windows 11), update strip uses theme caution brush; **SaveEditor** window uses the same background brush. Build: `dotnet build`. Output: `bin\Release\net462\`. Windows API Code Pack: `packages\winapicp.1.1` via `packages.config` (`winapicp`).
 
 ### Other
 
