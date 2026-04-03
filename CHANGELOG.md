@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes in this fork are documented here (upstream: [AnthonyZJiang/D-OS-Save-Editor](https://github.com/AnthonyZJiang/D-OS-Save-Editor)).
+All notable changes in **[phillenton/D-OS-Save-Editor](https://github.com/phillenton/D-OS-Save-Editor)** (this repository) are documented here. The original open-source project by Anthony Jiang is **[AnthonyZJiang/D-OS-Save-Editor](https://github.com/AnthonyZJiang/D-OS-Save-Editor)**.
 
 ## Post-fork improvements (master)
 

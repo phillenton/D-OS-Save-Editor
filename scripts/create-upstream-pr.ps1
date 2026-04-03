@@ -1,4 +1,5 @@
-# Creates a PR from this fork (feature/nested-containers) into AnthonyZJiang/D-OS-Save-Editor master.
+# OPTIONAL: Open a pull request from your fork into the original maintainer's repo (AnthonyZJiang/D-OS-Save-Editor).
+# Day-to-day work: push to origin — https://github.com/phillenton/D-OS-Save-Editor
 # Requires: GitHub CLI (`winget install GitHub.cli`) and `gh auth login` once.
 
 $ErrorActionPreference = "Stop"
@@ -27,7 +28,7 @@ Enhancements for **Divinity: Original Sin – Enhanced Edition** saves: full nes
 - **Amount:** `IsAmountEditable()` rules; extended gold names in `DataTable`.
 - **Docs:** `CHANGELOG.md`, `SAVE_FORMAT_NOTES.md`.
 
-Fork: `phillenton/d-os-save-file-editor` branch `feature/nested-containers` → upstream `master`.
+Fork: `phillenton/D-OS-Save-Editor` branch `feature/nested-containers` → original repo `master`.
 '@ | Set-Content -Path $bodyFile -Encoding UTF8
 
 gh pr create `
