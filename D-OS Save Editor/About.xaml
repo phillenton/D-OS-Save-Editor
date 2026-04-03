@@ -19,7 +19,11 @@
         </StackPanel>
         <StackPanel Orientation="Horizontal" Margin="30,20,30,0" HorizontalAlignment="Left" VerticalAlignment="Center">
             <TextBlock Text="Open source at" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-            <TextBlock Margin="5,0,0,0"><Hyperlink NavigateUri="https://github.com/tmxkn1/D-OS-Save-Editor" RequestNavigate="Hyperlink_RequestNavigate">Github</Hyperlink></TextBlock>
+            <TextBlock Margin="5,0,0,0"><Hyperlink NavigateUri="https://github.com/phillenton/D-OS-Save-Editor" RequestNavigate="Hyperlink_RequestNavigate">Github</Hyperlink></TextBlock>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="30,5,30,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+            <TextBlock Text="Original project:" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+            <TextBlock Margin="5,0,0,0"><Hyperlink NavigateUri="https://github.com/AnthonyZJiang/D-OS-Save-Editor" RequestNavigate="Hyperlink_RequestNavigate">AnthonyZJiang/D-OS-Save-Editor</Hyperlink></TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Margin="30,0,30,0" HorizontalAlignment="Left" VerticalAlignment="Center">
             <TextBlock Text="Use and discussions:" HorizontalAlignment="Left" VerticalAlignment="Center"/>

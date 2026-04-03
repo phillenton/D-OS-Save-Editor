@@ -12,7 +12,7 @@ namespace D_OS_Save_Editor
     /// <summary>
     /// Item category or type
     /// </summary>
-    public enum ItemSortType { Item = 0, Potion, Armor, Weapon, Gold, Skillbook, Scroll, Granade, Food, Furniture, Loot, Quest, Tool, Unique, Book, Other, Key, Arrow }
+    public enum ItemSortType { Item = 0, Potion, Armor, Weapon, Gold, Skillbook, Scroll, Granade, Food, Furniture, Loot, Quest, Tool, Unique, Book, Container, Other, Key, Arrow }
     public class Item
     {
         #region properties
@@ -224,6 +224,26 @@ namespace D_OS_Save_Editor
         /// Xml node name: stats of the item
         /// </summary>
         public StatsNode Stats { get; set; }
+
+        /// <summary>
+        /// Xml attribute id="Inventory": handle of this item's nested inventory (items whose Parent equals this). "0" if none.
+        /// </summary>
+        public string NestedInventoryId { get; set; } = "0";
+
+        /// <summary>
+        /// Optional friendly label from the save: id="DisplayName" or "Name" — resolved <c>value</c> if present, else Larian <c>handle</c> (h…;n).
+        /// </summary>
+        public string DisplayName { get; set; }
+
+        /// <summary>
+        /// True if this item sits in the character's paper-doll equipment band (slot 0..EquipmentPaperDollSlotCount-1 on main inventory).
+        /// </summary>
+        public bool IsEquippedPaperDoll(string characterInventoryId)
+        {
+            if (characterInventoryId == null || Parent != characterInventoryId) return false;
+            if (!int.TryParse(Slot, out var slot)) return false;
+            return slot >= 0 && slot < DataTable.EquipmentPaperDollSlotCount;
+        }
         #endregion
 
         #region methods
@@ -248,6 +268,34 @@ namespace D_OS_Save_Editor
 
         }
 
+
+
+        /// <summary>
+        /// Whether Amount (stack count) may be edited. Disabled for weapons, armor, furniture, quest items, keys, and Unique rarity.
+        /// </summary>
+        private bool IsAmountEditable()
+        {
+            switch (ItemSort)
+            {
+                case ItemSortType.Weapon:
+                case ItemSortType.Armor:
+                case ItemSortType.Furniture:
+                case ItemSortType.Quest:
+                case ItemSortType.Key:
+                case ItemSortType.Container:
+                    return false;
+            }
+
+            // Stats ids use arm_* for armor; keep Amount locked if sort was misclassified (e.g. item_* armor).
+            if (!string.IsNullOrEmpty(StatsName) &&
+                StatsName.StartsWith("arm_", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (ItemRarity == ItemRarityType.Unique)
+                return false;
+
+            return true;
+        }
         /// <summary>
         /// Get the names of the properties that can be safely and meaningfully changed.
         /// </summary>
@@ -266,14 +314,8 @@ namespace D_OS_Save_Editor
                 s += nameof(Generation);
             }
 
-            if (ItemSort == ItemSortType.Potion ||
-                ItemSort == ItemSortType.Gold ||
-                ItemSort == ItemSortType.Granade ||
-                ItemSort == ItemSortType.Scroll ||
-                ItemSort == ItemSortType.Food)
-            {
+            if (IsAmountEditable())
                 s += nameof(Amount);
-            }
 
             if (ItemSort == ItemSortType.Furniture)
             {

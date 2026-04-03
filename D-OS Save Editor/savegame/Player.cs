@@ -214,6 +214,11 @@ namespace D_OS_Save_Editor
         public Item[] Items { get; set; }
 
         /// <summary>
+        /// Xml nodes for each entry in <see cref="Items"/> (same index as <see cref="Item.ItemXmlNodeIdx"/>). Used when writing item edits for nested inventories.
+        /// </summary>
+        public List<XmlNode> ItemXmlNodes { get; set; }
+
+        /// <summary>
         /// NOT IN USE. Amount of gold.
         /// </summary>
         public string Gold { get; set; }

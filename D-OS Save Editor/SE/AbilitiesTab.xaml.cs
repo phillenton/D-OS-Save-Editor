@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Controls.Primitives;
 
 namespace D_OS_Save_Editor
 {
@@ -11,6 +12,7 @@ namespace D_OS_Save_Editor
     public partial class AbilitiesTab
     {
         private Player _player;
+        private bool _suppressFieldEvents;
         private Brush DefaultTextBoxBorderBrush { get; }
 
         public Player Player
@@ -30,8 +32,53 @@ namespace D_OS_Save_Editor
             DefaultTextBoxBorderBrush = ManAtArmsTextBox.BorderBrush;
         }
 
+        public bool HasPendingEdits()
+        {
+            if (Player == null) return false;
+            if (ManAtArmsTextBox.Text != Player.Abilities[(int)DataTable.Abilities.ManAtArms].ToString()) return true;
+            if (ExpertMarksmanTextBox.Text != Player.Abilities[(int)DataTable.Abilities.ExpertMarksman].ToString()) return true;
+            if (ScoundrelTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Scoundrel].ToString()) return true;
+            if (SingleHandedTextBox.Text != Player.Abilities[(int)DataTable.Abilities.SingleHanded].ToString()) return true;
+            if (TwoHandedTextBox.Text != Player.Abilities[(int)DataTable.Abilities.TwoHanded].ToString()) return true;
+            if (BowTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Bow].ToString()) return true;
+            if (CrossbowTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Crossbow].ToString()) return true;
+            if (ShieldSpecialistTextBox.Text != Player.Abilities[(int)DataTable.Abilities.ShieldSpecialist].ToString()) return true;
+            if (ArmourSpecialistTextBox.Text != Player.Abilities[(int)DataTable.Abilities.ArmourSpecialist].ToString()) return true;
+            if (WitchcraftTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Witchcraft].ToString()) return true;
+            if (TelekinesisTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Telekinesis].ToString()) return true;
+            if (WillpowerTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Willpower].ToString()) return true;
+            if (PyrokineticTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Pyrokinetic].ToString()) return true;
+            if (HydrosophistTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Hydrosophist].ToString()) return true;
+            if (AerotheurgeTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Aerotheurge].ToString()) return true;
+            if (GeomancerTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Geomancer].ToString()) return true;
+            if (BlacksmithingTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Blacksmithing].ToString()) return true;
+            if (SneakingTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Sneaking].ToString()) return true;
+            if (PickpocketingTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Pickpocketing].ToString()) return true;
+            if (LockpickingTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Lockpicking].ToString()) return true;
+            if (LoremasterTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Loremaster].ToString()) return true;
+            if (CraftingTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Crafting].ToString()) return true;
+            if (BarteringTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Bartering].ToString()) return true;
+            if (CharismaTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Charisma].ToString()) return true;
+            if (LeadershipTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Leadership].ToString()) return true;
+            if (LuckyCharmTextBox.Text != Player.Abilities[(int)DataTable.Abilities.LuckyCharm].ToString()) return true;
+            if (BodyBuildingTextBox.Text != Player.Abilities[(int)DataTable.Abilities.BodyBuilding].ToString()) return true;
+            if (DualWieldingTextBox.Text != Player.Abilities[(int)DataTable.Abilities.DualWielding].ToString()) return true;
+            if (WandTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Wand].ToString()) return true;
+            if (TenebriumTextBox.Text != Player.Abilities[(int)DataTable.Abilities.Tenebrium].ToString()) return true;
+            return false;
+        }
+
+        private void CharacterField_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_suppressFieldEvents) return;
+            if (Window.GetWindow(this) is SaveEditor editor)
+                editor.RefreshCharacterApplyPendingState();
+        }
         public void UpdateForm()
         {
+            _suppressFieldEvents = true;
+            try
+            {
             ManAtArmsTextBox.Text = Player.Abilities[(int)DataTable.Abilities.ManAtArms].ToString();
             ExpertMarksmanTextBox.Text = Player.Abilities[(int)DataTable.Abilities.ExpertMarksman].ToString();
             ScoundrelTextBox.Text = Player.Abilities[(int)DataTable.Abilities.Scoundrel].ToString();
@@ -62,6 +109,11 @@ namespace D_OS_Save_Editor
             DualWieldingTextBox.Text = Player.Abilities[(int)DataTable.Abilities.DualWielding].ToString();
             WandTextBox.Text = Player.Abilities[(int)DataTable.Abilities.Wand].ToString();
             TenebriumTextBox.Text = Player.Abilities[(int)DataTable.Abilities.Tenebrium].ToString();
+            }
+            finally
+            {
+                _suppressFieldEvents = false;
+            }
         }
 
         public void SaveEdits()

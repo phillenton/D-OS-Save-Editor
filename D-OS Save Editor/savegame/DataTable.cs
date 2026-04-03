@@ -1,8 +1,16 @@
-﻿namespace D_OS_Save_Editor
+﻿using System;
+
+namespace D_OS_Save_Editor
 {
     public class DataTable
     {
         public const string SupportedGameVersion = "2.0.119.430";
+
+        /// <summary>
+        /// Inventory slot indices 0..(EquipmentPaperDollSlotCount-1) on the character's main inventory are paper-doll equipment; higher slots are bag/grid.
+        /// Matches typical EquipmentSlots count on inventory nodes (15).
+        /// </summary>
+        public const int EquipmentPaperDollSlotCount = 15;
 
         public enum Attributes
         {
@@ -327,12 +335,41 @@
         /// Names used for Gold category items
         /// </summary>
         public static readonly string[] GoldNames =
-            {"small_gold", "inbetween_gold", "trader_large_gold", "trader_insane_gold"};
+        {
+            "small_gold",
+            "inbetween_gold",
+            "larger_gold",
+            "trader_large_gold",
+            "trader_insane_gold"
+        };
 
         /// <summary>
         /// Names used for Arrow category items. Arrow items have prefix WPN which is shared with the Weapon category. Therefore, we need these strings to identify the Arrow category.
         /// </summary>
         public static readonly string[] ArrowTypeNames = {"arrow", "arrowhead", "arrowshaft"};
+
+        /// <summary>
+        /// Exact Stats ids for bags/chests/pouches (lowercase). Not exhaustive — also match <see cref="IsContainerStatsName"/> prefixes cont_ and gen_container_.
+        /// There is no bundled list in LSLib; extend from game data or saves as needed.
+        /// </summary>
+        public static readonly string[] ContainerStatsExactNames =
+        {
+            "cont_backpack_a",
+            "cont_backpack_a_sourcehunter",
+            "gen_container_indestructible"
+        };
+
+        /// <summary>
+        /// True if this stats id should be categorized as a container (backpack, pouch, chest, etc.).
+        /// </summary>
+        public static bool IsContainerStatsName(string statsLower)
+        {
+            if (string.IsNullOrEmpty(statsLower)) return false;
+            if (System.Array.IndexOf(ContainerStatsExactNames, statsLower) >= 0) return true;
+            if (statsLower.StartsWith("cont_", StringComparison.Ordinal)) return true;
+            if (statsLower.StartsWith("gen_container_", StringComparison.Ordinal)) return true;
+            return false;
+        }
 
         public static string[] TraitNames =
         {

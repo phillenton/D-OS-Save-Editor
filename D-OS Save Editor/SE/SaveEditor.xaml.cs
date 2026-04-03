@@ -16,6 +16,8 @@ namespace D_OS_Save_Editor
         private Savegame Savegame { get; set; }
         private Player[] EditingPlayers { get; set; }
 
+        private string _baseTitle;
+        private bool _hasUnsavedChanges;
 
         public SaveEditor(string jsonFile)
         {
@@ -40,6 +42,8 @@ namespace D_OS_Save_Editor
             }
 
             PlayerSelectionComboBox.SelectedIndex = 0;
+            _baseTitle = Title;
+            SetUnsavedChanges(false);
         }
 
         public SaveEditor(Savegame savegame)
@@ -47,7 +51,8 @@ namespace D_OS_Save_Editor
             InitializeComponent();
             Savegame = savegame;
 
-            Title = $"D-OS Save Editor: {savegame.SavegameName.Substring(0,savegame.SavegameName.Length-4)}";
+            _baseTitle = $"D-OS Save Editor: {savegame.SavegameName.Substring(0, savegame.SavegameName.Length - 4)}";
+            Title = _baseTitle;
 
             // make a copy of players
             try
@@ -67,6 +72,33 @@ namespace D_OS_Save_Editor
             }
 
             PlayerSelectionComboBox.SelectedIndex = 0;
+            SetUnsavedChanges(false);
+        }
+
+        /// <summary>
+        /// Call when tab Apply or inventory apply commits edits to the in-memory save (still need Save to write .lsv).
+        /// </summary>
+        public void MarkUnsavedSessionChanges()
+        {
+            SetUnsavedChanges(true);
+        }
+
+        private void SetUnsavedChanges(bool dirty)
+        {
+            _hasUnsavedChanges = dirty;
+            if (!string.IsNullOrEmpty(_baseTitle))
+                Title = dirty ? $"{_baseTitle} *" : _baseTitle;
+            if (UnsavedChangesLabel != null)
+                UnsavedChangesLabel.Visibility = dirty ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public void RefreshCharacterApplyPendingState()
+        {
+            var pending = StatsTab.HasPendingEdits() || AbilitiesTab.HasPendingEdits() || TraitsTab.HasPendingEdits() ||
+                          TalentTab.HasPendingEdits();
+            SavePlayer.IsEnabled = pending;
+            if (CharacterApplyPendingLabel != null)
+                CharacterApplyPendingLabel.Visibility = pending ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void ShowContent(int id)
@@ -81,6 +113,8 @@ namespace D_OS_Save_Editor
             {
                 //TraitsTab.IsEnabled = false;
             }
+            RefreshCharacterApplyPendingState();
+            InventoryTab.RefreshInventoryApplyUi();
         }
 
         private void PlayerSelectionComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -94,6 +128,12 @@ namespace D_OS_Save_Editor
             try
             {
                 Cursor = Cursors.Wait;
+                if (!InventoryTab.TryApplyPendingInventoryForMainSave())
+                {
+                    Cursor = Cursors.Arrow;
+                    SaveButton.IsEnabled = true;
+                    return;
+                }
                 StatsTab.SaveEdits();
                 AbilitiesTab.SaveEdits();
                 TraitsTab.SaveEdits();
@@ -113,7 +153,9 @@ namespace D_OS_Save_Editor
                 await Savegame.WriteEditsToLsxAsync(progress);
                 // pack up files
                 await Savegame.PackSavegameAsync(progress);
-                
+
+                SetUnsavedChanges(false);
+
                 progressIndicator.ProgressText = "Successful.";
                 progressIndicator.CanCancel = true;
                 progressIndicator.CancelButtonText = "Close";
@@ -139,6 +181,9 @@ namespace D_OS_Save_Editor
             StatsTab.UpdateForm();
             AbilitiesTab.UpdateForm();
             InventoryTab.UpdateForm();
+            SetUnsavedChanges(false);
+            RefreshCharacterApplyPendingState();
+            InventoryTab.RefreshInventoryApplyUi();
         }
 
         private void SaveEditor_OnClosed(object sender, EventArgs e)
@@ -177,7 +222,6 @@ namespace D_OS_Save_Editor
         
         private void SavePlayer_OnClick(object sender, RoutedEventArgs e)
         {
-            SavePlayer.IsEnabled = false;
             try
             {
                 StatsTab.SaveEdits();
@@ -186,16 +230,13 @@ namespace D_OS_Save_Editor
                 TalentTab.SaveEdits();
 
                 MessageBox.Show(this, "Changes have been applied to the selected character.", "Successful");
+                MarkUnsavedSessionChanges();
+                RefreshCharacterApplyPendingState();
             }
             catch (Exception ex)
             {
-                SavePlayer.IsEnabled = true;
                 var er = new ErrorReporting($"Failed to save changes.\n\n{ex}", null);
                 er.ShowDialog();
-            }
-            finally
-            {
-                SavePlayer.IsEnabled = true;
             }
         }
 
@@ -210,11 +251,32 @@ namespace D_OS_Save_Editor
 
         private void SaveEditor_OnClosing(object sender, CancelEventArgs e)
         {
-            //if ()
-            //{
-            //    var result = MessageBox.Show(this, "You have unsaved changes. Do you want to close the window now?",
-            //        "Unsaved changes", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            //}
+            var unapplied = StatsTab.HasPendingEdits() || AbilitiesTab.HasPendingEdits() || TraitsTab.HasPendingEdits() ||
+                            TalentTab.HasPendingEdits() || InventoryTab.HasPendingItemDetailEdits();
+            if (unapplied)
+            {
+                var r1 = MessageBox.Show(this,
+                    "You have edited fields that are not applied yet (use Apply on the character tabs or Apply changes on inventory). Close anyway and lose those edits?",
+                    "Unapplied edits",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (r1 == MessageBoxResult.No)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+
+            if (!_hasUnsavedChanges) return;
+
+            var result = MessageBox.Show(this,
+                "You have changes that are not saved to the save file yet (use Save). Close anyway and discard those changes?",
+                "Unsaved changes",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.No)
+                e.Cancel = true;
         }
 
         private void BugReportButton_OnClick(object sender, RoutedEventArgs e)
