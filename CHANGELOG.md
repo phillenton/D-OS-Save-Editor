@@ -20,6 +20,7 @@ All notable changes in **[phillenton/D-OS-Save-Editor](https://github.com/phille
 ### Build
 
 - **SortGenerationList** retargeted to **.NET Framework 4.6.2** so the solution builds with the same targeting pack as the main WPF app (`App.config` / `csproj` updated).
+- **Main app:** SDK-style `D-OS Save Editor.csproj` targeting **net462**, `WPF-UI` ([lepoco/wpfui](https://github.com/lepoco/wpfui)) **4.2.0** — Fluent theme dictionaries in `App.xaml`, **`FluentWindow`** for the main shell. Build with `dotnet build` or Visual Studio. Output: `bin\Debug\net462\`. Windows API Code Pack still via `packages\winapicp.1.1` (restore with NuGet using `packages.config` for `winapicp`).
 
 ### Other
 

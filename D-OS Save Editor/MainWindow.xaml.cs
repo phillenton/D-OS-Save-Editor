@@ -29,7 +29,7 @@ namespace D_OS_Save_Editor
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow
+    public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         private readonly string _defaultProfileDir = $"{Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)}{DirectorySeparatorChar}Larian Studios{DirectorySeparatorChar}Divinity Original Sin Enhanced Edition{DirectorySeparatorChar}PlayerProfiles";
         private enum BackupStatus { None, Current, Old, NoChecksum, NoImage }
