@@ -37,8 +37,8 @@
                 </Style>
             </TextBlock.Style>
         </TextBlock>
-        <TextBox x:Name="LeftTextBox" Grid.Column="1" Text="{Binding LeftTrait.Value, UpdateSourceTrigger=PropertyChanged}" Margin="10,0" VerticalAlignment="Center" Width="20"/>
-        <TextBox x:Name="RightTextBox" Grid.Column="3" Text="{Binding RightTrait.Value, UpdateSourceTrigger=PropertyChanged}" Margin="10,0" VerticalAlignment="Center" Width="20"/>
+        <TextBox x:Name="LeftTextBox" Grid.Column="1" Text="{Binding LeftTrait.Value, UpdateSourceTrigger=PropertyChanged}" Margin="10,0" VerticalAlignment="Center" Width="20" TextChanged="TraitValue_TextChanged"/>
+        <TextBox x:Name="RightTextBox" Grid.Column="3" Text="{Binding RightTrait.Value, UpdateSourceTrigger=PropertyChanged}" Margin="10,0" VerticalAlignment="Center" Width="20" TextChanged="TraitValue_TextChanged"/>
         <Slider x:Name="Slider" Value="{Binding SliderValue, Mode=OneWay}" Grid.Column="2" VerticalAlignment="Center" Margin="10,5" Minimum="-1" Maximum="1" TickFrequency="1" TickPlacement="Both" Width="200" IsEnabled="False"/>
     </Grid>
 </UserControl>

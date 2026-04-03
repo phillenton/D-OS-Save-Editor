@@ -9,3 +9,6 @@ SortGenerationList/bin/
 SortGenerationList/obj/
 *.bak
 DeltaModifier.txt
+
+_patch_apply_pending.py
+_patch*.py

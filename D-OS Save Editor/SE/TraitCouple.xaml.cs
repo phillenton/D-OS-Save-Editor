@@ -1,7 +1,9 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows.Controls;
+using System.Windows;
 using System.Windows.Media;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using D_OS_Save_Editor.Annotations;
 
 namespace D_OS_Save_Editor
@@ -12,6 +14,18 @@ namespace D_OS_Save_Editor
     public partial class TraitCouple : UserControl
     {
         private Brush DefaultTextBoxBorderBrush { get; }
+
+
+        private void TraitValue_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            for (DependencyObject p = this; p != null; p = System.Windows.Media.VisualTreeHelper.GetParent(p))
+            {
+                if (p is TraitsTab traits && traits.SuppressTraitNotifications)
+                    return;
+            }
+            if (Window.GetWindow(this) is SaveEditor editor)
+                editor.RefreshCharacterApplyPendingState();
+        }
 
         public TraitCouple(Trait leftTrait, Trait rightTrait)
         {

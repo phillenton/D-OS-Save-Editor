@@ -17,6 +17,7 @@ namespace D_OS_Save_Editor
     public partial class InventoryTab
     {
         private Player _player;
+        private bool _suppressInventoryDetailEvents;
 
         private Brush DefaultTextBoxBorderBrush { get; }
         private Brush[] _itemRarityColor =
@@ -39,6 +40,63 @@ namespace D_OS_Save_Editor
             DefaultTextBoxBorderBrush = AmountTextBox.BorderBrush;
 
             RarityComboBox.ItemsSource = Enum.GetValues(typeof(Item.ItemRarityType)).Cast<Item.ItemRarityType>();
+        }
+
+        public bool HasPendingItemDetailEdits()
+        {
+            if (ItemsListBox.SelectedIndex < 0) return false;
+            var item = Player.Items[ItemsListBox.SelectedIndex];
+            var allowed = item.GetAllowedChangeType();
+
+            if (allowed.Contains(nameof(item.Amount)) && AmountTextBox.Text != item.Amount) return true;
+            if (allowed.Contains(nameof(item.LockLevel)) && LockLevelTextBox.Text != item.LockLevel) return true;
+            if (allowed.Contains(nameof(item.Vitality)) &&
+                (VitalityTextBox.Text != item.Vitality || MaxVitalityPatchCheckTextBox.Text != item.MaxVitalityPatchCheck))
+                return true;
+            if (allowed.Contains(nameof(item.ItemRarity)) && RarityComboBox.SelectedIndex >= 0 &&
+                (int)item.ItemRarity != RarityComboBox.SelectedIndex) return true;
+            if (allowed.Contains(nameof(item.Stats)) && item.Stats != null)
+            {
+                if (DurabilityTextBox.Text != (item.Stats.Durability ?? "")) return true;
+                if (DurabilityCounterTextBox.Text != (item.Stats.DurabilityCounter ?? "")) return true;
+                if (RepairDurabilityPenaltyTextBox.Text != (item.Stats.RepairDurabilityPenalty ?? "")) return true;
+                if (LevelTextBox.Text != (item.Stats.Level ?? "")) return true;
+            }
+            if (allowed.Contains(nameof(item.Generation)))
+            {
+                var uiBoosts = BoostsListBox.Items.Cast<string>().ToList();
+                var gen = item.Generation;
+                if (gen == null || gen.Boosts == null)
+                {
+                    if (uiBoosts.Count > 0) return true;
+                }
+                else if (!uiBoosts.SequenceEqual(gen.Boosts)) return true;
+            }
+            return false;
+        }
+
+        public void RefreshInventoryApplyUi()
+        {
+            var pending = ItemsListBox.SelectedIndex >= 0 && HasPendingItemDetailEdits();
+            ApplyChangesButton.IsEnabled = pending;
+            if (InventoryApplyPendingLabel != null)
+                InventoryApplyPendingLabel.Visibility = pending ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void InventoryDetailField_Changed(object sender, TextChangedEventArgs e)
+        {
+            if (_suppressInventoryDetailEvents) return;
+            if (sender is TextBox tb && tb.Uid == "SearchText") return;
+            if (Window.GetWindow(this) is SaveEditor se)
+            {
+                RefreshInventoryApplyUi();
+            }
+        }
+
+        private void RarityComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressInventoryDetailEvents) return;
+            RefreshInventoryApplyUi();
         }
 
         public void UpdateForm()
@@ -65,6 +123,7 @@ namespace D_OS_Save_Editor
                 if (i is TextBox t)
                     t.Text = "";
             }
+            RefreshInventoryApplyUi();
         }
 
         private void TextBoxEventSetter_OnLostFocus(object sender, RoutedEventArgs e)
@@ -88,6 +147,9 @@ namespace D_OS_Save_Editor
 
         private void ItemsListBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            _suppressInventoryDetailEvents = true;
+            try
+            {
             // clear list boxes
             BoostsListBox.Items.Clear();
             PermBoostsListBox.Items.Clear();
@@ -171,6 +233,12 @@ namespace D_OS_Save_Editor
                     PermBoostsListBox.Items.Add($"{m.Key} - {m.Value}");
                 }
             }
+            }
+            finally
+            {
+                _suppressInventoryDetailEvents = false;
+            }
+            RefreshInventoryApplyUi();
         }
         
         private void CheckboxEventSetter_OnClick(object sender, RoutedEventArgs e)
@@ -236,8 +304,23 @@ namespace D_OS_Save_Editor
 
         private void ApplyChangesButton_OnClick(object sender, RoutedEventArgs e)
         {
-            if (ItemsListBox.SelectedIndex < 0)
+            if (!TryApplySelectedItemChanges(sender as Button))
                 return;
+        }
+
+        /// <summary>
+        /// Used by main Save to commit inventory UI before writing globals.lsx.
+        /// </summary>
+        public bool TryApplyPendingInventoryForMainSave()
+        {
+            if (!HasPendingItemDetailEdits()) return true;
+            return TryApplySelectedItemChanges(null);
+        }
+
+        private bool TryApplySelectedItemChanges(Button toolTipButton)
+        {
+            if (ItemsListBox.SelectedIndex < 0)
+                return false;
 
             try
             {
@@ -283,7 +366,7 @@ namespace D_OS_Save_Editor
                                 var er = new ErrorReporting("It is not possible to add modifier to this item yet. No changes have been applied.", $"Item.Stats Null. Cannot add item modifiers.\n\nItem XML:\n{sw}", null);
                                 er.ShowDialog();
                             }
-                            return;
+                            return false;
                         }
                         item.Generation = new Item.GenerationNode(item.StatsName, "0");
                     }
@@ -313,27 +396,38 @@ namespace D_OS_Save_Editor
                 ((ListBoxItem) ItemsListBox.Items[ItemsListBox.SelectedIndex]).Foreground =
                     _itemRarityColor[(int) item.ItemRarity];
 
-                var tooltip = new ToolTip { Content = "Changes have been applied!" };
-                ((Button) sender).ToolTip = tooltip;
-                tooltip.Opened += async delegate (object o, RoutedEventArgs args)
+                if (toolTipButton != null)
                 {
-                    var s = o as ToolTip;
-                    await Task.Delay(1000);
-                    s.IsOpen = false;
-                    await Task.Delay(1000);
-                    ((Button)sender).ClearValue(ToolTipProperty);
-                };
-                tooltip.IsOpen = true;
+                    var tooltip = new ToolTip { Content = "Changes have been applied!" };
+                    toolTipButton.ToolTip = tooltip;
+                    tooltip.Opened += async delegate (object o, RoutedEventArgs args)
+                    {
+                        var s = o as ToolTip;
+                        await Task.Delay(1000);
+                        s.IsOpen = false;
+                        await Task.Delay(1000);
+                        toolTipButton.ClearValue(ToolTipProperty);
+                    };
+                    tooltip.IsOpen = true;
+                }
+
+                RefreshInventoryApplyUi();
+
+                if (Window.GetWindow(this) is SaveEditor se)
+                    se.MarkUnsavedSessionChanges();
+                return true;
             }
             catch (XmlValidationException ex)
             {
                 MessageBox.Show($"Invalid value entered: {ex.Name}: {ex.Value}. No change has been applied.\n\n{ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Internal error. No change has been applied.\n\n{ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
         }
 
@@ -368,13 +462,17 @@ namespace D_OS_Save_Editor
                     var dlg=new AddBoostDialog(predictedKeyword);
                     dlg.ShowDialog();
                     if (dlg.DialogResult == true)
+                    {
                         BoostsListBox.Items.Add(dlg.BoostText);
+                        RefreshInventoryApplyUi();
+                    }
                     break;
                 case "Copy text":
                     Clipboard.SetText((string)BoostsListBox.SelectedValue);
                     break;
                 case "Delete":
                     BoostsListBox.Items.RemoveAt(BoostsListBox.SelectedIndex);
+                    RefreshInventoryApplyUi();
                     break;
             }
         }

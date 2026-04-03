@@ -248,6 +248,33 @@ namespace D_OS_Save_Editor
 
         }
 
+
+
+        /// <summary>
+        /// Whether Amount (stack count) may be edited. Disabled for weapons, armor, furniture, quest items, keys, and Unique rarity.
+        /// </summary>
+        private bool IsAmountEditable()
+        {
+            switch (ItemSort)
+            {
+                case ItemSortType.Weapon:
+                case ItemSortType.Armor:
+                case ItemSortType.Furniture:
+                case ItemSortType.Quest:
+                case ItemSortType.Key:
+                    return false;
+            }
+
+            // Stats ids use arm_* for armor; keep Amount locked if sort was misclassified (e.g. item_* armor).
+            if (!string.IsNullOrEmpty(StatsName) &&
+                StatsName.StartsWith("arm_", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (ItemRarity == ItemRarityType.Unique)
+                return false;
+
+            return true;
+        }
         /// <summary>
         /// Get the names of the properties that can be safely and meaningfully changed.
         /// </summary>
@@ -266,14 +293,8 @@ namespace D_OS_Save_Editor
                 s += nameof(Generation);
             }
 
-            if (ItemSort == ItemSortType.Potion ||
-                ItemSort == ItemSortType.Gold ||
-                ItemSort == ItemSortType.Granade ||
-                ItemSort == ItemSortType.Scroll ||
-                ItemSort == ItemSortType.Food)
-            {
+            if (IsAmountEditable())
                 s += nameof(Amount);
-            }
 
             if (ItemSort == ItemSortType.Furniture)
             {

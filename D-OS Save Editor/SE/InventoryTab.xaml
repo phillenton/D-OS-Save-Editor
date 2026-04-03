@@ -15,6 +15,7 @@
             <Setter Property="HorizontalAlignment" Value="Left"></Setter>
             <EventSetter Event="LostFocus" Handler="TextBoxEventSetter_OnLostFocus"/>
             <EventSetter Event="PreviewTextInput" Handler="TextBoxEventSetter_OnPreviewTextInput"/>
+            <EventSetter Event="TextChanged" Handler="InventoryDetailField_Changed"/>
         </Style>
         <Style TargetType="RowDefinition">
             <Setter Property="Height" Value="Auto"/>
@@ -99,7 +100,7 @@
                     <TextBlock Text="Durability counter:" Grid.Row="2" Grid.Column="2" Margin="30,0,0,0"/>
                     <TextBlock Text="Repair durability penalty:" Grid.Row="3" Grid.Column="2" Margin="30,0,0,0"/>
                     <TextBox x:Name="AmountTextBox" Grid.Column="1" Margin="20,5,0,5" Width="90"/>
-                    <ComboBox x:Name="RarityComboBox" Grid.Column="1" Grid.Row="1" Width="90" Height="22" Margin="20,0,0,0"/>
+                    <ComboBox x:Name="RarityComboBox" SelectionChanged="RarityComboBox_OnSelectionChanged" Grid.Column="1" Grid.Row="1" Width="90" Height="22" Margin="20,0,0,0"/>
                     <TextBox x:Name="LockLevelTextBox" Grid.Row="2" Grid.Column="1"/>
                     <TextBox x:Name="LevelTextBox" Grid.Row="3" Grid.Column="1"/>
                     <StackPanel Grid.Row="0" Grid.Column="3" Orientation="Horizontal">
@@ -143,6 +144,13 @@
                 </Grid>
             </GroupBox>
         </WrapPanel>
-        <Button Grid.Column="1" Grid.Row="3" HorizontalAlignment="Right" Content="Apply changes" Padding="10,2" VerticalAlignment="Bottom" Margin="10" Click="ApplyChangesButton_OnClick"/>
+        <Grid Grid.Column="1" Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <Button x:Name="ApplyChangesButton" Grid.Column="0" Content="Apply changes" Padding="10,2" VerticalAlignment="Center" Margin="10,0,8,0" Click="ApplyChangesButton_OnClick" IsEnabled="False"/>
+            <TextBlock x:Name="InventoryApplyPendingLabel" Grid.Column="1" Text="Unapplied edits" Foreground="#CC6600" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,10,0" Visibility="Collapsed"/>
+        </Grid>
     </Grid>
 </UserControl>

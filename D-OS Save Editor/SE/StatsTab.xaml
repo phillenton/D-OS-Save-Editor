@@ -13,6 +13,7 @@
             <Setter Property="VerticalAlignment" Value="Top"/>
             <EventSetter Event="LostFocus" Handler="TextBoxEventSetter_OnLostFocus"/>
             <EventSetter Event="PreviewTextInput" Handler="TextBoxEventSetter_OnPreviewTextInput"/>
+            <EventSetter Event="TextChanged" Handler="CharacterField_TextChanged"/>
         </Style>
     </UserControl.Resources>
     <StackPanel>

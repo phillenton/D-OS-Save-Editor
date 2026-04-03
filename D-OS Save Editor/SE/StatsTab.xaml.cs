@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Controls.Primitives;
 
 namespace D_OS_Save_Editor
 {
@@ -11,6 +12,7 @@ namespace D_OS_Save_Editor
     public partial class StatsTab
     {
         private Player _player;
+        private bool _suppressFieldEvents;
         private Brush DefaultTextBoxBorderBrush { get; }
 
         public Player Player
@@ -30,8 +32,38 @@ namespace D_OS_Save_Editor
             DefaultTextBoxBorderBrush = ExpTextBox.BorderBrush;
         }
 
+
+        public bool HasPendingEdits()
+        {
+            if (Player == null) return false;
+            if (ExpTextBox.Text != Player.Experience) return true;
+            if (ReputationTextBox.Text != Player.Reputation) return true;
+            if (HpCurrentTextBox.Text != Player.Vitality) return true;
+            if (HpMaxTextBox.Text != Player.MaxVitalityPatchCheck) return true;
+            if (AttributePointsTextBox.Text != Player.AttributePoints) return true;
+            if (AbilityPointsTextBox.Text != Player.AbilityPoints) return true;
+            if (TalentPointsTextBox.Text != Player.TalentPoints) return true;
+            if (StrengthTextBox.Text != Player.Attributes[(int)DataTable.Attributes.Strength].ToString()) return true;
+            if (DexterityTextBox.Text != Player.Attributes[(int)DataTable.Attributes.Dexerity].ToString()) return true;
+            if (IntelligenceTextBox.Text != Player.Attributes[(int)DataTable.Attributes.Intelligence].ToString()) return true;
+            if (ConstitutionTextBox.Text != Player.Attributes[(int)DataTable.Attributes.Consitution].ToString()) return true;
+            if (SpeedTextBox.Text != Player.Attributes[(int)DataTable.Attributes.Speed].ToString()) return true;
+            if (PerceptionTextBox.Text != Player.Attributes[(int)DataTable.Attributes.Perception].ToString()) return true;
+            return false;
+        }
+
+        private void CharacterField_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_suppressFieldEvents) return;
+            if (Window.GetWindow(this) is SaveEditor editor)
+                editor.RefreshCharacterApplyPendingState();
+        }
+
         public void UpdateForm()
         {
+            _suppressFieldEvents = true;
+            try
+            {
             ExpTextBox.Text = Player.Experience;
             ReputationTextBox.Text = Player.Reputation;
             HpCurrentTextBox.Text = Player.Vitality;
@@ -45,6 +77,11 @@ namespace D_OS_Save_Editor
             ConstitutionTextBox.Text = Player.Attributes[(int)DataTable.Attributes.Consitution].ToString();
             SpeedTextBox.Text = Player.Attributes[(int)DataTable.Attributes.Speed].ToString();
             PerceptionTextBox.Text = Player.Attributes[(int)DataTable.Attributes.Perception].ToString();
+            }
+            finally
+            {
+                _suppressFieldEvents = false;
+            }
         }
 
         public void SaveEdits()
